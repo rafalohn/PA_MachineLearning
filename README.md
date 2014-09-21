@@ -4,6 +4,8 @@
 
 + machineLearning.html is the R Markdown in HTML
 
++ index.html is a copy of machineLearning.html
+
 + memory.PNG and memory2.PNG are images for the HTML document
 
 + finalModel.R is the code used for the exercise predictions
