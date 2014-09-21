@@ -11,6 +11,7 @@ knitr::opts_chunk$set(cache=TRUE)
 library(caret)
 library(plyr)
 library(randomForest)
+library(rpart)
 set.seed(627849)
 ```
 
@@ -52,7 +53,6 @@ predictionTotal <- data.frame()
 testTotal <- data.frame()
 
 for (i in 1:k){
-  print(paste('Rpart: ',i))
   training <- subset(data, id %in% list[-i])
   testCurrent <- subset(data, id %in% c(i))
   model <-train(classe ~.,method='rpart',data=training)
@@ -94,5 +94,6 @@ I decided to follow with a Stochastic Gradient Boosting model to try to improve 
 
 ![crash 1](memory.PNG)
 ![crash 2](memory2.PNG)
+
 
 Therefore I applied the Random Forest Approach to the test set expecting a success of `r randomForest*100`%. I correctly predicted ##/20 measurements of the test set, which is ####.
