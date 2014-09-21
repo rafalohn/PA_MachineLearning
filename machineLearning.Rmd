@@ -1,0 +1,98 @@
+---
+title: "Practical Machine Learning Assignment"
+author: "Rafael Lohn"
+date: "September 21, 2014"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache=TRUE)
+```
+```{r libraries, echo=FALSE}
+library(caret)
+library(plyr)
+library(randomForest)
+set.seed(627849)
+```
+
+First I took a look at the data and decided that the indexes and name of the subjects should not be necessary. Moreover, from the nature of the measurements, I decided also not to use the date-time data.
+
+```{r load data, }
+data<-read.csv("pml-training.csv")
+dimOriginal<-dim(data)[2]
+```
+```{r remove names and times, }
+columnsToRemove<-c('X','user_name','raw_timestamp_part_1','raw_timestamp_part_2','cvtd_timestamp')
+data <- data[,!(names(data) %in% columnsToRemove)]
+remove(columnsToRemove)
+```
+
+Then, I proceeded to remove the variables that had only NAs and the variables that had no measurement (empty or divisions by zero).
+
+```{r remove NAs, }
+columnCountNA<-colSums(is.na(data))
+data <- data[,columnCountNA< 10]
+remove(columnCountNA)
+columnCountEmpty<-colSums(data=="")+colSums(data=="#DIV/0!")
+data <- data[,columnCountEmpty< 10]
+remove(columnCountEmpty)
+```
+
+```{r initialize k-fold, }
+k = 5
+data$id <- sample(1:k, nrow(data), replace = TRUE)
+list <- 1:k
+```
+
+With this steps I went from `r dimOriginal` variables to `r dim(data)[2]`. And, having only `r dim(data)[1]` observations, I decided to work with a `r k`-fold for cross validation. It seems like a good balance of number of chunks versus size of the sample. 
+
+My first approach was to try a simple prediction with trees. 
+
+```{r trees, }
+predictionTotal <- data.frame()
+testTotal <- data.frame()
+
+for (i in 1:k){
+  print(paste('Rpart: ',i))
+  training <- subset(data, id %in% list[-i])
+  testCurrent <- subset(data, id %in% c(i))
+  model <-train(classe ~.,method='rpart',data=training)
+  predictionCurrent <- as.data.frame(predict(model, testCurrent[,-55]))
+  predictionTotal <- rbind(predictionTotal, predictionCurrent)
+  testTotal <- rbind(testTotal, as.data.frame(testCurrent[,55]))
+}
+result <- cbind(predictionTotal, testTotal[, 1])
+names(result) <- c("Predicted", "Actual")
+rPart<-sum(result$Actual==result$Predicted)/dim(result)[1]
+table(result$Actual,result$Predicted)
+```
+
+This model gave me an average result of `r rPart*100`% correct classifications. Curiously, it did not predict any 'classe' of type D. Not good.
+
+The second approach was the Random Forest model. 
+
+```{r forest, }
+predictionTotal <- data.frame()
+testTotal <- data.frame()
+
+for (i in 1:k){
+  training <- subset(data, id %in% list[-i])
+  testCurrent <- subset(data, id %in% c(i))
+  model <- randomForest(training$classe ~ ., data = training)
+  predictionCurrent <- as.data.frame(predict(model, testCurrent[,-55]))
+  predictionTotal <- rbind(predictionTotal, predictionCurrent)
+  testTotal <- rbind(testTotal, as.data.frame(testCurrent[,55]))
+}
+result <- cbind(predictionTotal, testTotal[, 1])
+names(result) <- c("Predicted", "Actual")
+randomForest<-sum(result$Actual==result$Predicted)/dim(result)[1]
+table(result$Actual,result$Predicted)
+```
+
+This model gave me an average result of `r randomForest*100`% correct classifications. This approach seemed - as expected - very good. 
+
+I decided to follow with a Stochastic Gradient Boosting model to try to improve the Random Forest result. It took much longer than the previous calculations and in all my atempts... crashed my computer:
+
+![crash 1](memory.PNG)
+![crash 2](memory2.PNG)
+
+Therefore I applied the Random Forest Approach to the test set expecting a success of `r randomForest*100`%. I correctly predicted ##/20 measurements of the test set, which is ####.
